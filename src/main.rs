@@ -1,24 +1,26 @@
 use num::complex::Complex;
-use std;
+use std::{self, fs::File, path::Path};
+
+use std::env;
 use std::f32;
 
 fn fft(buffer: &mut Vec<Complex<f32>>) -> &mut Vec<Complex<f32>> {
-    let N = buffer.len();
-    if N == 1 {
+    let n = buffer.len();
+    if n == 1 {
         return buffer;
     }
 
-    let r: f32 = -2.00 * f32::consts::PI / (N as f32);
+    let r: f32 = -2.00 * f32::consts::PI / (n as f32);
     let root = Complex::new(r.cos(), r.sin());
 
     let p_even = &mut vec![];
     let p_odd = &mut vec![];
 
-    for i in (0..N).step_by(2) {
+    for i in (0..n).step_by(2) {
         p_even.push(buffer[i]);
     }
 
-    for i in (1..N).step_by(2) {
+    for i in (1..n).step_by(2) {
         p_odd.push(buffer[i]);
     }
 
@@ -26,9 +28,9 @@ fn fft(buffer: &mut Vec<Complex<f32>>) -> &mut Vec<Complex<f32>> {
     let odd = fft(p_odd);
 
     let mut r: Complex<f32> = Complex::new(1.00, 0.00);
-    for i in 0..N / 2 {
+    for i in 0..n / 2 {
         buffer[i] = even[i] + r * odd[i];
-        buffer[N / 2 + i] = even[i] - r * odd[i];
+        buffer[n / 2 + i] = even[i] - r * odd[i];
         r *= root;
     }
 
@@ -51,5 +53,13 @@ fn dft(input: &mut Vec<f32>) -> Vec<Complex<f32>> {
 }
 
 fn main() {
-    println!("Hello, world!");
+    let file_path = env::args().nth(1);
+
+    if file_path == None {
+        println!("Please give a path to a wav file");
+        return;
+    }
+
+    let mut input_file = File::open(Path::new(&file_path.unwrap()));
+    let (header, data) = wav::read(&mut input_file);
 }

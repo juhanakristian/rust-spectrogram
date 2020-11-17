@@ -8,4 +8,6 @@ edition = "2018"
 
 [dependencies]
 num = "0.3"
+wav = "0.4.1"
+png = "0.16.7"
 
