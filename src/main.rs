@@ -1,6 +1,7 @@
 use num::complex::Complex;
 use std::{self, fs::File, path::Path};
 
+use hound;
 use std::env;
 use std::f32;
 
@@ -52,14 +53,27 @@ fn dft(input: &mut Vec<f32>) -> Vec<Complex<f32>> {
     return ans;
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let file_path = env::args().nth(1);
 
     if file_path == None {
         println!("Please give a path to a wav file");
-        return;
+        return Ok(());
     }
 
-    let mut input_file = File::open(Path::new(&file_path.unwrap()));
-    let (header, data) = wav::read(&mut input_file);
+    let window_size = 256;
+
+    let mut reader = hound::WavReader::open(file_path.unwrap()).unwrap();
+    let sample_count = reader.len();
+    for n in (0..sample_count).step_by(window_size) {
+        let mut window = reader
+            .samples::<f32>()
+            .take(window_size)
+            .flatten()
+            .collect::<Vec<_>>();
+
+        let result = dft(&mut window);
+    }
+
+    return Ok(());
 }
