@@ -2,6 +2,9 @@ use num::complex::Complex;
 use std::{self, fs::File, path::Path};
 
 use hound;
+use png;
+use std::io::BufWriter;
+
 use std::env;
 use std::f32;
 
@@ -61,19 +64,32 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
+    let path = Path::new(r"/path/to/image.png");
+    let file = File::create(path).unwrap();
+    let ref mut w = BufWriter::new(file);
+
     let window_size = 256;
 
     let mut reader = hound::WavReader::open(file_path.unwrap()).unwrap();
     let sample_count = reader.len();
+
+    let mut encoder = png::Encoder::new(w, sample_count / 44100, 256);
+    encoder.set_color(png::ColorType::RGBA);
+    encoder.set_depth(png::BitDepth::Eight);
+
+    let mut max_amplitude = 0;
+
+    let mut result: Vec<Complex<f32>> = vec![];
     for n in (0..sample_count).step_by(window_size) {
         let mut window = reader
             .samples::<f32>()
             .take(window_size)
             .flatten()
             .collect::<Vec<_>>();
-
-        let result = dft(&mut window);
+        result.append(&mut dft(&mut window));
     }
+
+    for n in 0..result.len() {}
 
     return Ok(());
 }
