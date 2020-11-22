@@ -56,6 +56,16 @@ fn dft(input: &mut Vec<f32>) -> Vec<Complex<f32>> {
     return ans;
 }
 
+fn hann_window(v: Vec<f32>) -> Vec<f32> {
+    let mut v2 = v.to_vec();
+    for i in 0..v.len() {
+        let t = i as f32 / v.len() as f32 - 1.0;
+        v2[i] *= (t * f32::consts::PI).sin().powf(2.0);
+    }
+
+    return v2;
+}
+
 fn main() -> std::io::Result<()> {
     let file_path = env::args().nth(1);
 
@@ -68,28 +78,55 @@ fn main() -> std::io::Result<()> {
     let file = File::create(path).unwrap();
     let ref mut w = BufWriter::new(file);
 
-    let window_size = 256;
+    let nrows = 256;
+    let ncols = 512;
+
+    let window_size = nrows as usize;
+    let db_ceil: f32 = 100.0;
+    let db_floor: f32 = 10.0;
 
     let mut reader = hound::WavReader::open(file_path.unwrap()).unwrap();
     let sample_count = reader.len();
 
-    let mut encoder = png::Encoder::new(w, sample_count / 44100, 256);
+    let mut encoder = png::Encoder::new(w, ncols, nrows);
     encoder.set_color(png::ColorType::RGBA);
     encoder.set_depth(png::BitDepth::Eight);
+    let mut image_data: Vec<i32> = vec![];
 
-    let mut max_amplitude = 0;
-
+    let mut max_amp: f32 = 0.0;
     let mut result: Vec<Complex<f32>> = vec![];
-    for n in (0..sample_count).step_by(window_size) {
+    for column in (0..sample_count).step_by(window_size) {
         let mut window = reader
             .samples::<f32>()
             .take(window_size)
             .flatten()
             .collect::<Vec<_>>();
-        result.append(&mut dft(&mut window));
+
+        let dft_result = dft(&mut hann_window(window));
+        let amp_result = dft_result
+            .into_iter()
+            .map(|v| (v.norm() / window_size as f32).log10())
+            .collect::<Vec<_>>();
+
+        for j in 0..window_size {
+            let mut amp = amp_result[j].max(db_floor).min(db_ceil);
+            amp -= db_floor;
+            amp /= db_ceil - db_floor;
+
+            image_data[j + column as usize * window_size as usize] = (amp * 255.0) as i32;
+            max_amp = max_amp.max(amp);
+        }
     }
 
-    for n in 0..result.len() {}
+    // let mut max_amplitude = result.iter().max_by(|a, b| a.)
+    for i in 0..nrows {
+        for j in 0..ncols {
+            let index = (i + j * nrows) as usize;
+            image_data[index] /= max_amp as i32;
+        }
+    }
+
+    //TODO: add green,blue, alpha and write image
 
     return Ok(());
 }
